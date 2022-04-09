@@ -7,20 +7,25 @@ import (
 	"github.com/leonsteinhaeuser/observer"
 )
 
-func main() {
-	observer := observer.NewObserver[string, string]()
+type Event struct {
+	ID      int
+	Message string
+}
 
-	clients := make(map[string]chan string)
-	clients = map[string]chan string{
-		"client1": make(chan string),
-		"client2": make(chan string),
-		"client3": make(chan string),
-		"client4": make(chan string),
-		"client5": make(chan string),
+func main() {
+	observer := observer.NewObserver[string, Event]()
+
+	clients := make(map[string]chan Event)
+	clients = map[string]chan Event{
+		"client1": make(chan Event),
+		"client2": make(chan Event),
+		"client3": make(chan Event),
+		"client4": make(chan Event),
+		"client5": make(chan Event),
 	}
 
 	for key, client := range clients {
-		go func(key string, client chan string) {
+		go func(key string, client chan Event) {
 			fmt.Println("Registering client:", key)
 			observer.RegisterClient(key, client)
 
@@ -36,7 +41,10 @@ func main() {
 			go func(idx int) {
 				for j := 0; j <= 5; j++ {
 					time.Sleep(time.Second * 2)
-					observer.NotifyAll(fmt.Sprintf("custom: %d=%d", idx, j))
+					observer.NotifyAll(Event{
+						ID:      idx,
+						Message: fmt.Sprintf("custom: %d=%d", idx, j),
+					})
 				}
 			}(i)
 		}
