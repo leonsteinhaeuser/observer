@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	obsrv "github.com/leonsteinhaeuser/observer"
+	"github.com/leonsteinhaeuser/observer"
 )
 
 func main() {
-	observer := obsrv.NewObserver[string, string]()
+	observer := observer.NewObserver[string, string]()
 
 	clients := make(map[string]chan string)
 	clients = map[string]chan string{
