@@ -12,82 +12,74 @@ type Event struct {
 	Message string
 }
 
+var (
+	obsrv observer.Observable[int, Event] = observer.NewObserver[int, Event]()
+)
+
 func main() {
-	observer := observer.NewObserver[string, Event]()
-
-	clients := make(map[string]chan Event)
-	clients = map[string]chan Event{
-		"client1": make(chan Event),
-		"client2": make(chan Event),
-		"client3": make(chan Event),
-		"client4": make(chan Event),
-		"client5": make(chan Event),
-	}
-
-	for key, client := range clients {
-		go func(key string, client chan Event) {
-			fmt.Println("Registering client:", key)
-			observer.RegisterClient(key, client)
-
+	// mock clients and their channels
+	clients := make(map[int]chan Event)
+	for i := 0; i < 5; i++ {
+		clntChan := make(chan Event)
+		go func(id int) {
+			// example work
 			for {
-				data := <-client
-				fmt.Println("Client:", key, "received:", data)
+				select {
+				case evt := <-clntChan:
+					fmt.Printf("Client %d received: %+v\n", id, evt)
+				}
 			}
-		}(key, client)
+		}(i)
+		clients[i] = clntChan
 	}
 
+	// register clients
+	for id, client := range clients {
+		obsrv.RegisterClient(id, client)
+	}
+
+	// send a bunch of events
 	go func() {
-		for i := 0; i <= 2; i++ {
-			go func(idx int) {
-				for j := 0; j <= 5; j++ {
-					time.Sleep(time.Second * 2)
-					observer.NotifyAll(Event{
-						ID:      idx,
-						Message: fmt.Sprintf("custom: %d=%d", idx, j),
-					})
-				}
-			}(i)
+		for i := 0; i < 10; i++ {
+			obsrv.NotifyAll(Event{
+				ID:      i,
+				Message: fmt.Sprintf("Message with ID %d", i),
+			})
 		}
 	}()
 
-	fmt.Println("========== 1 REGISTERED CLIENTS ==========: ", observer.Clients())
+	// private function to deregister a client
+	fncDeregister := func(numbers int) {
+		counter := 0
+		for key, _ := range clients {
+			if counter == numbers {
+				break
+			}
+			counter++
+
+			err := obsrv.DeRegisterClient(key)
+			if err != nil {
+				fmt.Println(err)
+			}
+			delete(clients, key)
+		}
+	}
+
+	fmt.Println("========== REGISTERED CLIENTS ==========: ", obsrv.Clients())
 
 	time.Sleep(time.Second * 5)
 
-	fmt.Println("========== 2 REGISTERED CLIENTS ==========: ", observer.Clients())
+	fmt.Println("========== REGISTERED CLIENTS ==========: ", obsrv.Clients())
 	// remove two clients
-	counter := 0
-	for key, _ := range clients {
-		if counter == 2 {
-			break
-		}
-		counter++
+	fncDeregister(2)
 
-		err := observer.DeRegisterClient(key)
-		if err != nil {
-			fmt.Println(err)
-		}
-		delete(clients, key)
-	}
-	fmt.Println("========== 3 REGISTERED CLIENTS ==========: ", observer.Clients())
+	fmt.Println("========== REGISTERED CLIENTS ==========: ", obsrv.Clients())
 
 	time.Sleep(time.Second * 5)
 
 	// remove additional 5 clients
-	counter = 0
-	for key, _ := range clients {
-		if counter == 5 {
-			break
-		}
-		counter++
-
-		err := observer.DeRegisterClient(key)
-		if err != nil {
-			fmt.Println(err)
-		}
-		delete(clients, key)
-	}
+	fncDeregister(5)
 
 	// all clients have been removed
-	fmt.Println("========== 4 REGISTERED CLIENTS ==========: ", observer.Clients())
+	fmt.Println("========== REGISTERED CLIENTS ==========: ", obsrv.Clients())
 }
