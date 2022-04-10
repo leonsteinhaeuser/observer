@@ -1,0 +1,38 @@
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: example
+    env:
+    - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    main: ./_example/
+    binary: example
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: 'Bug fixes'
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^github:'
+      - '^ci:'
+      - '^cd:'
+      - '^ci/cd:'
+      - '^example:'
+      - '^gomod:'
+      - '^git:'
+      - '^goreleaser:'
