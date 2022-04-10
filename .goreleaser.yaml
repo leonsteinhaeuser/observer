@@ -17,11 +17,14 @@ changelog:
   sort: asc
   groups:
     - title: Features
-      regexp: "^.*feat[(\\w)]*:+.*$"
+      regexp: "^feat[(\\w)]*:+.*$"
       order: 0
     - title: 'Bug fixes'
-      regexp: "^.*fix[(\\w)]*:+.*$"
+      regexp: "^fix[(\\w)]*:+.*$"
       order: 1
+    - title: 'Enhancements'
+      regexp: "^enhancement:+.*$"
+      order: 2
     - title: Others
       order: 999
   filters:
