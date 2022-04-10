@@ -1,0 +1,26 @@
+name: tests
+
+on:
+  push:
+    branches:
+      - "**"
+
+env:
+  go_version: 1.18
+
+jobs:
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Go ${{ env.go_version }}
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.go_version }}
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run tests
+        shell: bash
+        run: go test -race -cover ./...
