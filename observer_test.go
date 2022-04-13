@@ -1,154 +1,25 @@
 package observer
 
 import (
+	"sync"
 	"testing"
 )
 
-func TestObserver_RegisterClient(t *testing.T) {
+func TestObserver_Subscribe(t *testing.T) {
 	type fields struct {
-		observer *Observer[string, string]
-	}
-	type args struct {
-		id      string
-		channel chan string
-	}
-	tests := []struct {
-		name   string
-		args   args
-		fields fields
-	}{
-		{
-			name: "Register client",
-			args: args{
-				id:      "client1",
-				channel: make(chan string),
-			},
-			fields: fields{
-				observer: NewObserver[string, string](),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.fields.observer.RegisterClient(tt.args.id, tt.args.channel)
-		})
-	}
-}
-
-func TestObserver_DeRegisterClient(t *testing.T) {
-	type fields struct {
-		observer *Observer[string, string]
-		clients  map[string]chan string
-	}
-	type args struct {
-		id string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		fields  fields
-		wantErr bool
-	}{
-		{
-			name: "DeRegister client1",
-			args: args{
-				id: "client1",
-			},
-			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string),
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "DeRegister client1",
-			args: args{
-				id: "client1",
-			},
-			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string),
-					"client2": make(chan string),
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "DeRegister client2",
-			args: args{
-				id: "client2",
-			},
-			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string),
-					"client2": make(chan string),
-					"client3": make(chan string),
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "DeRegister client5",
-			args: args{
-				id: "client5",
-			},
-			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string),
-					"client2": make(chan string),
-					"client3": make(chan string),
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "DeRegister client19",
-			args: args{
-				id: "client5",
-			},
-			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string),
-					"client2": make(chan string),
-					"client3": make(chan string),
-				},
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			for id, client := range tt.fields.clients {
-				// add clients to observer
-				tt.fields.observer.RegisterClient(id, client)
-			}
-			// deregister client
-			err := tt.fields.observer.DeRegisterClient(tt.args.id)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Observer[string,string].DeRegisterClient() error = %v wantErr = %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestObserver_NotifyAll(t *testing.T) {
-	type fields struct {
-		observer *Observer[string, string]
-		clients  map[string]chan string
+		observer      *Observer[string]
+		numberClients int
 	}
 	type args struct {
 		message string
 	}
 	tests := []struct {
-		name   string
-		args   args
-		fields fields
+		name              string
+		args              args
+		fields            fields
+		expectMessage     string
+		expectClients     int
+		expectCancelError error
 	}{
 		{
 			name: "send message to all clients 1",
@@ -156,13 +27,11 @@ func TestObserver_NotifyAll(t *testing.T) {
 				message: "client1",
 			},
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string, 1),
-					"client2": make(chan string, 1),
-					"client3": make(chan string, 1),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
+			expectMessage: "client1",
+			expectClients: 3,
 		},
 		{
 			name: "send message to all clients 3",
@@ -170,13 +39,11 @@ func TestObserver_NotifyAll(t *testing.T) {
 				message: "hello world",
 			},
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string, 1),
-					"client2": make(chan string, 1),
-					"client3": make(chan string, 1),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
+			expectMessage: "hello world",
+			expectClients: 3,
 		},
 		{
 			name: "send message to all clients 4",
@@ -184,198 +51,235 @@ func TestObserver_NotifyAll(t *testing.T) {
 				message: "foo bar",
 			},
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string, 1),
-					"client2": make(chan string, 1),
-					"client3": make(chan string, 1),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
+			expectMessage: "foo bar",
+			expectClients: 3,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for id, client := range tt.fields.clients {
-				// add clients to observer
-				tt.fields.observer.RegisterClient(id, client)
+			cancelfuncs := []CancelFunc{}
+			for i := 0; i < tt.fields.numberClients; i++ {
+				_, cf := tt.fields.observer.Subscribe()
+				cancelfuncs = append(cancelfuncs, cf)
 			}
-			// notify all clients
-			tt.fields.observer.NotifyAll(tt.args.message)
+			if len(cancelfuncs) != tt.expectClients {
+				t.Errorf("Observer.Subscribe() expected %v clients, got %v", tt.expectClients, len(cancelfuncs))
+			}
 		})
 	}
 }
 
-func TestObserver_NotifyClient(t *testing.T) {
+func TestObserver_deleteClient(t *testing.T) {
 	type fields struct {
-		observer *Observer[string, string]
-		clients  map[string]chan string
+		observer      *Observer[string]
+		numberClients int
 	}
 	type args struct {
-		clientID string
-		message  string
+		message string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		fields  fields
-		wantErr bool
+		name              string
+		args              args
+		fields            fields
+		expectClients     int
+		expectCancelError error
 	}{
 		{
-			name: "notify client100 (not registered)",
+			name: "send message to all clients 1",
 			args: args{
-				clientID: "client100",
-				message:  "client1",
+				message: "client1",
 			},
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string, 1),
-					"client2": make(chan string, 1),
-					"client3": make(chan string, 1),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
-			wantErr: true,
+			expectClients: 3,
 		},
 		{
-			name: "notify client1",
+			name: "send message to all clients 3",
 			args: args{
-				clientID: "client1",
-				message:  "client1",
+				message: "hello world",
 			},
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string, 1),
-					"client2": make(chan string, 1),
-					"client3": make(chan string, 1),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
-			wantErr: false,
+			expectClients: 3,
 		},
 		{
-			name: "notify client2",
+			name: "send message to all clients 4",
 			args: args{
-				clientID: "client2",
-				message:  "hello world",
+				message: "foo bar",
 			},
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string, 1),
-					"client2": make(chan string, 1),
-					"client3": make(chan string, 1),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
-			wantErr: false,
-		},
-		{
-			name: "notify client3",
-			args: args{
-				clientID: "client3",
-				message:  "foo bar",
-			},
-			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string, 1),
-					"client2": make(chan string, 1),
-					"client3": make(chan string, 1),
-				},
-			},
-			wantErr: false,
+			expectClients: 3,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for id, client := range tt.fields.clients {
-				// add clients to observer
-				tt.fields.observer.RegisterClient(id, client)
+			cancelfuncs := []CancelFunc{}
+			for i := 0; i < tt.fields.numberClients; i++ {
+				_, cf := tt.fields.observer.Subscribe()
+				cancelfuncs = append(cancelfuncs, cf)
 			}
-			// notify client
-			err := tt.fields.observer.NotifyClient(tt.args.clientID, tt.args.message)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Observer[string,string].NotifyClient() error = %v, wantErr %v", err, tt.wantErr)
+
+			got := tt.fields.observer.Clients()
+			if got != int64(tt.expectClients) {
+				t.Errorf("TestObserver.Observer[string].Clients() = %v, want %v", got, tt.expectClients)
 			}
+
+			for _, cancel := range cancelfuncs {
+				err := cancel()
+				if err != tt.expectCancelError {
+					t.Errorf("TestObserver.Observer[string].Cancel() = %v, want %v", err, tt.expectCancelError)
+				}
+			}
+
+			gotAfterCancel := tt.fields.observer.Clients()
+			if gotAfterCancel != 0 {
+				t.Errorf("TestObserver.Observer[string].Clients() after cancel = %v, want 0", got)
+			}
+		})
+	}
+}
+
+func TestObserver_NotifyAll(t *testing.T) {
+	type fields struct {
+		observer      *Observer[string]
+		numberClients int
+	}
+	type args struct {
+		message string
+	}
+	tests := []struct {
+		name          string
+		args          args
+		fields        fields
+		expectMessage string
+	}{
+		{
+			name: "send message to all clients 1",
+			args: args{
+				message: "client1",
+			},
+			fields: fields{
+				observer:      NewObserver[string](),
+				numberClients: 3,
+			},
+			expectMessage: "client1",
+		},
+		{
+			name: "send message to all clients 3",
+			args: args{
+				message: "hello world",
+			},
+			fields: fields{
+				observer:      NewObserver[string](),
+				numberClients: 3,
+			},
+			expectMessage: "hello world",
+		},
+		{
+			name: "send message to all clients 4",
+			args: args{
+				message: "foo bar",
+			},
+			fields: fields{
+				observer:      NewObserver[string](),
+				numberClients: 3,
+			},
+			expectMessage: "foo bar",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wg := &sync.WaitGroup{}
+			wg.Add(tt.fields.numberClients)
+			for i := 0; i < tt.fields.numberClients; i++ {
+				ch, _ := tt.fields.observer.Subscribe()
+				go func(ch <-chan string) {
+					for {
+						message := <-ch
+						if tt.expectMessage == message {
+							wg.Done()
+							return
+						}
+					}
+				}(ch)
+			}
+			// notify all clients
+			tt.fields.observer.NotifyAll(tt.args.message)
+			wg.Wait()
 		})
 	}
 }
 
 func TestObserver_Clients(t *testing.T) {
 	type fields struct {
-		observer *Observer[string, string]
-		clients  map[string]chan string
-	}
-	type args struct {
-		message string
+		observer      *Observer[string]
+		numberClients int
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   int64
+		name              string
+		fields            fields
+		expectClients     int
+		expectCancelError error
 	}{
 		{
-			name: "1 client",
+			name: "send message to all clients 1",
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
-			want: 1,
+			expectClients: 3,
 		},
 		{
-			name: "2 clients",
+			name: "send message to all clients 3",
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string),
-					"client2": make(chan string),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
-			want: 2,
+			expectClients: 3,
 		},
 		{
-			name: "3 clients",
+			name: "send message to all clients 4",
 			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1": make(chan string),
-					"client2": make(chan string),
-					"client3": make(chan string),
-				},
+				observer:      NewObserver[string](),
+				numberClients: 3,
 			},
-			want: 3,
-		},
-		{
-			name: "10 client",
-			fields: fields{
-				observer: NewObserver[string, string](),
-				clients: map[string]chan string{
-					"client1":  make(chan string),
-					"client2":  make(chan string),
-					"client3":  make(chan string),
-					"client4":  make(chan string),
-					"client5":  make(chan string),
-					"client6":  make(chan string),
-					"client7":  make(chan string),
-					"client8":  make(chan string),
-					"client9":  make(chan string),
-					"client10": make(chan string),
-				},
-			},
-			want: 10,
+			expectClients: 3,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for id, client := range tt.fields.clients {
-				// add clients to observer
-				tt.fields.observer.RegisterClient(id, client)
+			cancelfuncs := []CancelFunc{}
+
+			for i := 0; i < tt.fields.numberClients; i++ {
+				_, cf := tt.fields.observer.Subscribe()
+				cancelfuncs = append(cancelfuncs, cf)
 			}
 
 			got := tt.fields.observer.Clients()
-			if got != tt.want {
-				t.Errorf("Observer[string,string].Clients() = %v, want %v", got, tt.want)
+			if got != int64(tt.expectClients) {
+				t.Errorf("TestObserver_Clients got = %v, want %v", got, tt.expectClients)
+			}
+
+			for _, cancel := range cancelfuncs {
+				err := cancel()
+				if err != tt.expectCancelError {
+					t.Errorf("TestObserver_Clients.Cancel() = %v, want %v", err, tt.expectCancelError)
+				}
+			}
+
+			gotAfterCancel := tt.fields.observer.Clients()
+			if gotAfterCancel != 0 {
+				t.Errorf("TestObserver_Clients() after cancel = %v, want 0", got)
 			}
 		})
 	}
