@@ -13,17 +13,17 @@ builds:
     binary: example
 
 changelog:
-  use: git
+  use: github
   sort: asc
   groups:
     - title: Features
-      regexp: "^feat[(\\w)]*:+.*$"
+      regexp: "^.*feat[(\\w)]*:+.*$"
       order: 0
     - title: 'Bug fixes'
-      regexp: "^fix[(\\w)]*:+.*$"
+      regexp: "^.*fix[(\\w)]*:+.*$"
       order: 1
     - title: 'Enhancements'
-      regexp: "^enhancement:+.*$"
+      regexp: "^.*enhancement[(\\w)]*:+.*$"
       order: 2
     - title: Others
       order: 999
