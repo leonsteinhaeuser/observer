@@ -2,9 +2,14 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/leonsteinhaeuser/observer"
+)
+
+const (
+	registerClientCount = 3
 )
 
 type Event struct {
@@ -13,73 +18,73 @@ type Event struct {
 }
 
 var (
-	obsrv observer.Observable[int, Event] = observer.NewObserver[int, Event]()
+	obsrv observer.Observable[Event] = observer.NewObserver[Event]()
 )
 
 func main() {
-	// mock clients and their channels
-	clients := make(map[int]chan Event)
-	for i := 0; i < 5; i++ {
-		clntChan := make(chan Event)
-		go func(id int) {
-			// example work
+	wg := sync.WaitGroup{}
+	wg.Add(registerClientCount)
+	cancelFuns := []observer.CancelFunc{}
+	for i := 0; i < registerClientCount; i++ {
+		ch, cancelFunc := obsrv.Subscribe()
+		cancelFuns = append(cancelFuns, cancelFunc)
+		go func(i int, ch <-chan Event) {
 			for {
-				select {
-				case evt := <-clntChan:
-					fmt.Printf("Client %d received: %+v\n", id, evt)
+				message := <-ch
+				fmt.Printf("Runner: %d\tMessageID: %d\tMessage: %s\n", i, message.ID, message.Message)
+				if message.ID == 1 {
+					wg.Done()
 				}
 			}
-		}(i)
-		clients[i] = clntChan
+		}(i, ch)
 	}
 
-	// register clients
-	for id, client := range clients {
-		obsrv.RegisterClient(id, client)
+	fmt.Println("Registered clients:", obsrv.Clients())
+
+	obsrv.NotifyAll(Event{
+		ID:      1,
+		Message: "Hello World",
+	})
+
+	wg.Wait()
+
+	// remove the first client
+	err := cancelFuns[0]()
+	if err != nil {
+		fmt.Println("Error:", err)
 	}
 
-	// send a bunch of events
-	go func() {
-		for i := 0; i < 10; i++ {
-			obsrv.NotifyAll(Event{
-				ID:      i,
-				Message: fmt.Sprintf("Message with ID %d", i),
-			})
+	// let's try to remove the first client again
+	err = cancelFuns[0]()
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
+
+	// let's send another message
+	obsrv.NotifyAll(Event{
+		ID:      2,
+		Message: "Hello World 2",
+	})
+
+	// list the clients
+	fmt.Println("Registered clients:", obsrv.Clients())
+
+	// deregister all clients
+	for _, cancelFunc := range cancelFuns {
+		err = cancelFunc()
+		if err != nil {
+			fmt.Println("Error:", err)
 		}
-	}()
-
-	// private function to deregister a client
-	fncDeregister := func(numbers int) {
-		counter := 0
-		for key, _ := range clients {
-			if counter == numbers {
-				break
-			}
-			counter++
-
-			err := obsrv.DeRegisterClient(key)
-			if err != nil {
-				fmt.Println(err)
-			}
-			delete(clients, key)
-		}
 	}
 
-	fmt.Println("========== REGISTERED CLIENTS ==========: ", obsrv.Clients())
+	// list the clients
+	fmt.Println("Registered clients:", obsrv.Clients())
 
-	time.Sleep(time.Second * 5)
+	if obsrv.Clients() == 0 {
+		fmt.Println("No clients left. ")
+		time.Sleep(time.Second * 5)
+		return
+	}
 
-	fmt.Println("========== REGISTERED CLIENTS ==========: ", obsrv.Clients())
-	// remove two clients
-	fncDeregister(2)
-
-	fmt.Println("========== REGISTERED CLIENTS ==========: ", obsrv.Clients())
-
-	time.Sleep(time.Second * 5)
-
-	// remove additional 5 clients
-	fncDeregister(5)
-
-	// all clients have been removed
-	fmt.Println("========== REGISTERED CLIENTS ==========: ", obsrv.Clients())
+	select {}
 }
