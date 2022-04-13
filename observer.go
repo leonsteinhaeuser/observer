@@ -56,6 +56,7 @@ func (o *Observer[t]) deleteClient(uid string) error {
 	if _, ok := o.clients[uid]; !ok {
 		return ErrClientAlreadyDeRegistered
 	}
+	close(o.clients[uid])
 	delete(o.clients, uid)
 	return nil
 }
