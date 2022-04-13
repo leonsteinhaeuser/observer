@@ -19,25 +19,28 @@ import (
 )
 
 type Event struct {
-    ID int
+    ID      int
     Message string
 }
 
 var (
-    obsrv observer.Observable[int, Event] = observer.NewObserver[int, Event]()
+    obsrv observer.Observable[Event] = observer.NewObserver[Event]()
 )
 
 func main() {
-    obsrv.RegisterClient(1, make(chan Event))
+    rspCh, cancelFunc := obsrv.Subscribe()
+    defer cancelFunc()
+    go func() {
+        for {
+            fmt.Printf("Received event: %v\n", <-rspCh)
+        }
+    }()
+    fmt.Println("Registered Clients: ", obsrv.Clients())
+
     obsrv.NotifyAll(Event{
         ID:      i,
-        Message: fmt.Sprintf("Message with ID %d", i),
+        Message: "Hello World",
     })
-    fmt.Println("Registered Clients: ", obsrv.Clients())
-    err := obsrv.DeRegisterClient(1)
-    if err != nil {
-        fmt.Println(err)
-    }
 }
 ```
 
