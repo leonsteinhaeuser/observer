@@ -3,6 +3,7 @@ package observer
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -62,7 +63,16 @@ func (o *Observer[t]) deleteClient(uid string) error {
 // NotifyAll notifies all registered clients.
 func (o *Observer[t]) NotifyAll(data t) {
 	for _, client := range o.clients {
-		client <- data
+		go func(client chan t) {
+			select {
+			case client <- data:
+				// the message was sent successfully
+				return
+			case <-time.After(time.Second * 5):
+				// client is not responding
+				return
+			}
+		}(client)
 	}
 }
 
