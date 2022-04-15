@@ -1,6 +1,6 @@
 # observer
 
-This library implements the pub/sub pattern in a generic way. It uses Go's generic types to declare the type of the client identifier as well as the type of the event.
+This library implements the pub/sub pattern in a generic way. It uses Go's generic types to declare the type of the event.
 
 ## Usage
 
