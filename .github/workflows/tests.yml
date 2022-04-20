@@ -12,6 +12,9 @@ jobs:
   unit:
     name: unit tests
     runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      COVER_FILE: coverage.txt
     steps:
       - name: Setup Go ${{ env.go_version }}
         uses: actions/setup-go@v3
@@ -23,4 +26,13 @@ jobs:
 
       - name: Run tests
         shell: bash
-        run: go test -race -cover ./...
+        run: go test -race -coverprofile=$COVER_FILE -covermode=atomic $(go list ./...)
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ env.CODECOV_TOKEN }}
+          env_vars: OS,GOLANG
+          fail_ci_if_error: true
+          files: ${{ env.COVER_FILE }}
+          flags: unittests

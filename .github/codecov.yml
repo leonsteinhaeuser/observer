@@ -1,0 +1,18 @@
+codecov:
+  branch: main
+  strict_yaml_branch: main
+
+coverage:
+  range: 70..100
+  round: nearest
+  precision: 2
+
+comment: 
+  layout: ""
+  require_base: false
+  require_head: yes 
+  branches:
+  - "M3GmRUVDUZcwg8nK1GmvERHAttwdAYVH" # set it to M3GmRUVDUZcwg8nK1GmvERHAttwdAYVH so that no comments are written.
+
+ignore:
+  - "_example/"
