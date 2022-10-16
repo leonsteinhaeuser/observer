@@ -3,81 +3,70 @@ package observer
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/google/uuid"
 )
 
-var (
-	ErrClientAlreadyDeRegistered = errors.New("client already de-registered")
-)
+var ErrClientAlreadyDeRegistered = errors.New("client already de-registered")
 
-type CancelFunc func() error
+type CancelFunc func()
 
 // Observable
-type Observable[t any] interface {
+type Observable[T any] interface {
 	// Subscribe registers a client to the observable.
-	Subscribe() (<-chan t, CancelFunc)
+	Subscribe() (<-chan T, CancelFunc)
 	// NotifyAll notifies all registered clients.
-	NotifyAll(data t)
-	// Clients returns the number of registered clients.
-	Clients() int64
+	NotifyAll(data T)
 }
 
 // Observer offers the possibility to notify all registered clients.
 // Since the client map must be initialized, it is not possible to use this structure directly.
 // Use NewObserver instead.
-type Observer[t any] struct {
-	lock    sync.Mutex
-	clients map[string]chan t
+type Observer[T any] struct {
+	NotifyTimeout time.Duration
+	clients       sync.Map
+	n             int64
 }
 
-// NewObserver initializes a new Observer.
-func NewObserver[t any]() *Observer[t] {
-	return &Observer[t]{
-		clients: make(map[string]chan t),
+func (o *Observer[T]) notifyTimeout() time.Duration {
+	if o.NotifyTimeout != 0 {
+		return o.NotifyTimeout
 	}
+	return time.Second * 5
 }
 
 // Subscribe registers a client to the observer and returns a channel to receive notifications.
 // The returned CancelFunc can be used to de-register the client.
-func (o *Observer[t]) Subscribe() (<-chan t, CancelFunc) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-	uid := uuid.NewString()
-	listenCh := make(chan t)
-	o.clients[uid] = listenCh
-	return listenCh, func() error {
-		return o.deleteClient(uid)
+func (o *Observer[T]) Subscribe() (<-chan T, CancelFunc) {
+	n := atomic.AddInt64(&o.n, 1)
+	listenCh := make(chan T)
+	o.clients.Store(n, listenCh)
+	return listenCh, func() {
+		o.deleteClient(n)
 	}
 }
 
-func (o *Observer[t]) deleteClient(uid string) error {
-	if _, ok := o.clients[uid]; !ok {
-		return ErrClientAlreadyDeRegistered
+func (o *Observer[T]) deleteClient(uid int64) {
+	c, ok := o.clients.LoadAndDelete(uid)
+	if !ok {
+		return
 	}
-	close(o.clients[uid])
-	delete(o.clients, uid)
-	return nil
+	close(c.(chan T))
 }
 
 // NotifyAll notifies all registered clients.
-func (o *Observer[t]) NotifyAll(data t) {
-	for _, client := range o.clients {
-		go func(client chan t) {
+func (o *Observer[T]) NotifyAll(data T) {
+	o.clients.Range(func(_, value any) bool {
+		go func(client chan T) {
 			select {
 			case client <- data:
 				// the message was sent successfully
 				return
-			case <-time.After(time.Second * 5):
+			case <-time.After(o.notifyTimeout()):
 				// client is not responding
 				return
 			}
-		}(client)
-	}
-}
-
-// Clients returns the number of registered clients.
-func (o *Observer[t]) Clients() int64 {
-	return int64(len(o.clients))
+		}(value.(chan T))
+		return true
+	})
 }
