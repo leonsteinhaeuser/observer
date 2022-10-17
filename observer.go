@@ -9,7 +9,7 @@ import (
 
 var ErrClientAlreadyDeRegistered = errors.New("client already de-registered")
 
-type CancelFunc func()
+type CancelFunc func() error
 
 // Observable
 type Observable[T any] interface {
@@ -27,6 +27,7 @@ type Observer[T any] struct {
 	clients       sync.Map
 	mu            sync.RWMutex
 	n             int64
+	numDeleted    int64
 }
 
 func (o *Observer[T]) notifyTimeout() time.Duration {
@@ -42,19 +43,21 @@ func (o *Observer[T]) Subscribe() (<-chan T, CancelFunc) {
 	n := atomic.AddInt64(&o.n, 1)
 	listenCh := make(chan T)
 	o.clients.Store(n, listenCh)
-	return listenCh, func() {
-		o.deleteClient(n)
+	return listenCh, func() error {
+		return o.deleteClient(n)
 	}
 }
 
-func (o *Observer[T]) deleteClient(uid int64) {
+func (o *Observer[T]) deleteClient(uid int64) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	c, ok := o.clients.LoadAndDelete(uid)
 	if !ok {
-		return
+		return ErrClientAlreadyDeRegistered
 	}
+	atomic.AddInt64(&o.numDeleted, 1)
 	close(c.(chan T))
+	return nil
 }
 
 // NotifyAll notifies all registered clients.
@@ -78,4 +81,9 @@ func (o *Observer[T]) NotifyAll(data T) {
 		}(key)
 		return true
 	})
+}
+
+// Clients returns the number of registered clients.
+func (o *Observer[t]) Clients() int64 {
+	return o.n - o.numDeleted
 }

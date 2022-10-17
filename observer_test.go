@@ -7,7 +7,7 @@ import (
 
 func TestObserver_Subscribe(t *testing.T) {
 	type fields struct {
-		observer      Observable[string]
+		observer      *Observer[string]
 		numberClients int
 	}
 	type args struct {
@@ -122,14 +122,28 @@ func TestObserver_deleteClient(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(_ *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			cancelfuncs := []CancelFunc{}
 			for i := 0; i < tt.fields.numberClients; i++ {
 				_, cf := tt.fields.observer.Subscribe()
 				cancelfuncs = append(cancelfuncs, cf)
 			}
+
+			got := tt.fields.observer.Clients()
+			if got != int64(tt.expectClients) {
+				t.Errorf("TestObserver.Observer[string].Clients() = %v, want %v", got, tt.expectClients)
+			}
+
 			for _, cancel := range cancelfuncs {
-				cancel()
+				err := cancel()
+				if err != tt.expectCancelError {
+					t.Errorf("TestObserver.Observer[string].Cancel() = %v, want %v", err, tt.expectCancelError)
+				}
+			}
+
+			gotAfterCancel := tt.fields.observer.Clients()
+			if gotAfterCancel != 0 {
+				t.Errorf("TestObserver.Observer[string].Clients() after cancel = %v, want 0", got)
 			}
 		})
 	}
@@ -202,6 +216,71 @@ func TestObserver_NotifyAll(t *testing.T) {
 			// notify all clients
 			tt.fields.observer.NotifyAll(tt.args.message)
 			wg.Wait()
+		})
+	}
+}
+
+func TestObserver_Clients(t *testing.T) {
+	type fields struct {
+		observer      *Observer[string]
+		numberClients int
+	}
+	tests := []struct {
+		name              string
+		fields            fields
+		expectClients     int
+		expectCancelError error
+	}{
+		{
+			name: "send message to all clients 1",
+			fields: fields{
+				observer:      new(Observer[string]),
+				numberClients: 3,
+			},
+			expectClients: 3,
+		},
+		{
+			name: "send message to all clients 3",
+			fields: fields{
+				observer:      new(Observer[string]),
+				numberClients: 3,
+			},
+			expectClients: 3,
+		},
+		{
+			name: "send message to all clients 4",
+			fields: fields{
+				observer:      new(Observer[string]),
+				numberClients: 3,
+			},
+			expectClients: 3,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cancelfuncs := []CancelFunc{}
+
+			for i := 0; i < tt.fields.numberClients; i++ {
+				_, cf := tt.fields.observer.Subscribe()
+				cancelfuncs = append(cancelfuncs, cf)
+			}
+
+			got := tt.fields.observer.Clients()
+			if got != int64(tt.expectClients) {
+				t.Errorf("TestObserver_Clients got = %v, want %v", got, tt.expectClients)
+			}
+
+			for _, cancel := range cancelfuncs {
+				err := cancel()
+				if err != tt.expectCancelError {
+					t.Errorf("TestObserver_Clients.Cancel() = %v, want %v", err, tt.expectCancelError)
+				}
+			}
+
+			gotAfterCancel := tt.fields.observer.Clients()
+			if gotAfterCancel != 0 {
+				t.Errorf("TestObserver_Clients() after cancel = %v, want 0", got)
+			}
 		})
 	}
 }
