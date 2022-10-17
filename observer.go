@@ -25,6 +25,7 @@ type Observable[T any] interface {
 type Observer[T any] struct {
 	NotifyTimeout time.Duration
 	clients       sync.Map
+	mu            sync.RWMutex
 	n             int64
 }
 
@@ -47,6 +48,8 @@ func (o *Observer[T]) Subscribe() (<-chan T, CancelFunc) {
 }
 
 func (o *Observer[T]) deleteClient(uid int64) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 	c, ok := o.clients.LoadAndDelete(uid)
 	if !ok {
 		return
@@ -56,17 +59,23 @@ func (o *Observer[T]) deleteClient(uid int64) {
 
 // NotifyAll notifies all registered clients.
 func (o *Observer[T]) NotifyAll(data T) {
-	o.clients.Range(func(_, value any) bool {
-		go func(client chan T) {
+	o.clients.Range(func(key, _ any) bool {
+		go func(key any) {
+			o.mu.RLock()
+			defer o.mu.RUnlock()
+			client, ok := o.clients.Load(key)
+			if !ok {
+				return
+			}
 			select {
-			case client <- data:
+			case client.(chan T) <- data:
 				// the message was sent successfully
 				return
 			case <-time.After(o.notifyTimeout()):
 				// client is not responding
 				return
 			}
-		}(value.(chan T))
+		}(key)
 		return true
 	})
 }
