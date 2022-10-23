@@ -1,6 +1,7 @@
 package observer
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -48,10 +49,10 @@ func (o *Observer[T]) Subscribe() (<-chan T, CancelFunc) {
 	}
 }
 
-func (o *Observer[T]) deleteClient(uid int64) error {
+func (o *Observer[T]) deleteClient(key any) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	c, ok := o.clients.LoadAndDelete(uid)
+	c, ok := o.clients.LoadAndDelete(key)
 	if !ok {
 		return ErrClientAlreadyDeRegistered
 	}
@@ -86,4 +87,25 @@ func (o *Observer[T]) NotifyAll(data T) {
 // Clients returns the number of registered clients.
 func (o *Observer[t]) Clients() int64 {
 	return o.n - o.numDeleted
+}
+
+// Handle builds repetitive message consumer using provided handler function h.
+// Returned func() error value is suitable to run in errrgroup's Go() method.
+func Handle[T any](ctx context.Context, o Observable[T], h func(context.Context, T) error) (func() error, CancelFunc) {
+	msgs, unsub := o.Subscribe()
+	return func() error {
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case upd, ok := <-msgs:
+				if !ok {
+					return nil
+				}
+				if err := h(ctx, upd); err != nil {
+					return err
+				}
+			}
+		}
+	}, unsub
 }
