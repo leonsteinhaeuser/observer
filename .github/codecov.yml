@@ -7,10 +7,10 @@ coverage:
   round: nearest
   precision: 2
 
-comment: 
+comment:
   layout: ""
   require_base: false
-  require_head: yes 
+  require_head: yes
   branches:
   - "M3GmRUVDUZcwg8nK1GmvERHAttwdAYVH" # set it to M3GmRUVDUZcwg8nK1GmvERHAttwdAYVH so that no comments are written.
 
