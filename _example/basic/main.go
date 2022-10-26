@@ -17,9 +17,7 @@ type Event struct {
 	Message string
 }
 
-var (
-	obsrv observer.Observable[Event] = observer.NewObserver[Event]()
-)
+var obsrv observer.Observable[Event] = new(observer.Observer[Event])
 
 func main() {
 	wg := sync.WaitGroup{}
