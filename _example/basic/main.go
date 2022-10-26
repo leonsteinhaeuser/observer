@@ -17,7 +17,7 @@ type Event struct {
 	Message string
 }
 
-var obsrv observer.Observable[Event] = new(observer.Observer[Event])
+var obsrv *observer.Observer[Event] = new(observer.Observer[Event])
 
 func main() {
 	wg := sync.WaitGroup{}
@@ -64,7 +64,7 @@ func main() {
 		Message: "Hello World 2",
 	})
 
-	// list the clients
+	// list clients
 	fmt.Println("Registered clients:", obsrv.Clients())
 
 	// deregister all clients
@@ -75,7 +75,7 @@ func main() {
 		}
 	}
 
-	// list the clients
+	// list clients
 	fmt.Println("Registered clients:", obsrv.Clients())
 
 	if obsrv.Clients() == 0 {

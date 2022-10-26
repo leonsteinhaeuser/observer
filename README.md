@@ -34,7 +34,7 @@ type Event struct {
 }
 
 var (
-    obsrv observer.Observable[Event] = observer.NewObserver[Event]()
+    obsrv *observer.Observer[Event] = new(observer.Observer[Event])
 )
 
 func main() {
@@ -54,4 +54,4 @@ func main() {
 }
 ```
 
-If you would like to see a more detailed example, please take a look at the [observer](_example/main.go) example.
+If you would like to see a more detailed example, please take a look at the [observer](_example/handler/main.go) example.
