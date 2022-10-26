@@ -9,7 +9,7 @@ builds:
       - linux
     goarch:
       - amd64
-    main: ./_example/
+    main: ./_example/basic
     binary: example
 
 changelog:
