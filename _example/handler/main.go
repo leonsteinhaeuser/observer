@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/leonsteinhaeuser/observer"
+	"github.com/leonsteinhaeuser/observer/v2"
 	"golang.org/x/sync/errgroup"
 )
 
