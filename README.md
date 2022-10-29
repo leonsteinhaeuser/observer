@@ -22,7 +22,7 @@ The v2 release contains breaking changes. The most important ones are:
 ## Usage
 
 ```bash
-go get github.com/leonsteinhaeuser/observer
+go get github.com/leonsteinhaeuser/observer/v2
 ```
 
 ## Example
@@ -32,7 +32,7 @@ package main
 
 import (
     "fmt"
-    "github.com/leonsteinhaeuser/observer"
+    "github.com/leonsteinhaeuser/observer/v2"
 )
 
 type Event struct {

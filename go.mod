@@ -1,4 +1,4 @@
-module github.com/leonsteinhaeuser/observer
+module github.com/leonsteinhaeuser/observer/v2
 
 go 1.18
 

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/leonsteinhaeuser/observer"
+	"github.com/leonsteinhaeuser/observer/v2"
 )
 
 const (
