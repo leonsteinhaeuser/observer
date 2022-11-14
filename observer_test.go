@@ -337,12 +337,11 @@ func TestObserver_Handle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.TODO()
-			cancelfuncs := []CancelFunc{}
 			var wg sync.WaitGroup
 			g, _ := errgroup.WithContext(ctx)
 			for i := 0; i < tt.fields.numberClients; i++ {
 				wg.Add(1)
-				f, cf := Handle[string](ctx, tt.fields.observer, func(_ context.Context, s string) error {
+				f := Handle[string](ctx, tt.fields.observer, func(_ context.Context, s string) error {
 					defer wg.Done()
 					if s != tt.args.message {
 						t.Errorf("expected %s got %s", tt.args.message, s)
@@ -350,7 +349,6 @@ func TestObserver_Handle(t *testing.T) {
 					return nil
 				})
 				g.Go(f)
-				cancelfuncs = append(cancelfuncs, cf)
 			}
 
 			got := tt.fields.observer.Clients()
@@ -361,11 +359,8 @@ func TestObserver_Handle(t *testing.T) {
 			tt.fields.observer.NotifyAll(tt.args.message)
 			wg.Wait()
 
-			for _, cancel := range cancelfuncs {
-				err := cancel()
-				if err != tt.expectCancelError {
-					t.Errorf("TestObserver_Clients.Cancel() = %v, want %v", err, tt.expectCancelError)
-				}
+			if err := tt.fields.observer.Close(); err != nil {
+				t.Fatal(err)
 			}
 			if err := g.Wait(); err != nil {
 				t.Fatal(err)

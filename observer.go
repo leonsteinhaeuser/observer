@@ -91,9 +91,10 @@ func (o *Observer[t]) Clients() int64 {
 
 // Handle builds repetitive message consumer using provided handler function h.
 // Returned func() error value is suitable to run in errrgroup's Go() method.
-func Handle[T any](ctx context.Context, o Observable[T], h func(context.Context, T) error) (func() error, CancelFunc) {
+func Handle[T any](ctx context.Context, o Observable[T], h func(context.Context, T) error) func() error {
 	msgs, unsub := o.Subscribe()
 	return func() error {
+		defer unsub()
 		for {
 			select {
 			case <-ctx.Done():
@@ -107,5 +108,17 @@ func Handle[T any](ctx context.Context, o Observable[T], h func(context.Context,
 				}
 			}
 		}
-	}, unsub
+	}
+}
+
+// Close disconnects all clients from the observer
+func (o *Observer[T]) Close() error {
+	var res error
+	o.clients.Range(func(key, _ any) bool {
+		if err := o.deleteClient(key); err != nil {
+			res = err
+		}
+		return true
+	})
+	return res
 }
