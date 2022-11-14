@@ -6,8 +6,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/hashicorp/go-multierror"
 )
 
 var ErrClientAlreadyDeRegistered = errors.New("client already de-registered")
@@ -118,7 +116,7 @@ func (o *Observer[T]) Close() error {
 	var res error
 	o.clients.Range(func(key, _ any) bool {
 		if err := o.deleteClient(key); err != nil {
-			res = multierror.Append(res, err)
+			res = err
 		}
 		return true
 	})
