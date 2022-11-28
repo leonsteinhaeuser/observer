@@ -35,7 +35,7 @@ jobs:
         run: go test -race -coverprofile=$COVER_FILE -covermode=atomic $(go list ./...)
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           token: ${{ env.CODECOV_TOKEN }}
           env_vars: OS,GOLANG
