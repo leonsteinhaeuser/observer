@@ -28,7 +28,7 @@ jobs:
           go-version: ${{ env.go_version }}
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run tests
         shell: bash
