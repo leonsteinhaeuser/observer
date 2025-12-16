@@ -6,29 +6,26 @@ on:
       - 'v*'
 
 env:
-  go_version: 1.18
+  go_version: 1.25
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Go ${{ env.go_version }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go_version }}
 
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Fetch all tags
-        run: git fetch --force --tags
-
       - name: Run goreleaser
-        uses: goreleaser/goreleaser-action@v3
+        uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --rm-dist
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

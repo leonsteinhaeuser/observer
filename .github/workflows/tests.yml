@@ -12,7 +12,7 @@ on:
       - "**"
 
 env:
-  go_version: 1.18
+  go_version: 1.25
 
 jobs:
   unit:
@@ -23,19 +23,19 @@ jobs:
       COVER_FILE: coverage.txt
     steps:
       - name: Setup Go ${{ env.go_version }}
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.go_version }}
 
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run tests
         shell: bash
         run: go test -race -coverprofile=$COVER_FILE -covermode=atomic $(go list ./...)
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           token: ${{ env.CODECOV_TOKEN }}
           env_vars: OS,GOLANG
