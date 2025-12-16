@@ -9,7 +9,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Add size label
-        uses: "pascalgn/size-label-action@v0.4.3"
+        uses: "pascalgn/size-label-action@v0.5.5"
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           IGNORED: ".gitignore\n*.md\n*.MD\n*.json\n*.sql\n*.yaml\n*.yml\n.dockerignore\ngo.mod\ngo.sum\nLICENSE"
@@ -30,6 +30,6 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: TimonVS/pr-labeler-action@v4
+      - uses: TimonVS/pr-labeler-action@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
